@@ -33,6 +33,8 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState<Partial<Staff>>({});
     const [isImporting, setIsImporting] = useState(false);
+    const [rosterKey, setRosterKey] = useState(0);
+    const [rosterJumpDate, setRosterJumpDate] = useState(new Date().toLocaleDateString('de-DE'));
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const shiftInputRef = useRef<HTMLInputElement>(null);
@@ -71,8 +73,13 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose }) => {
                     setIsImporting(true);
                     try {
                         const count = await bulkImportShifts(entries, staffList);
-                        showToast(`${count} Dienste importiert.`, 'success'); 
-                        setTimeout(() => window.location.reload(), 1000);
+                        showToast(`${count} Dienste importiert.`, 'success');
+                        // Jump to the week of the first imported shift instead of reloading the whole page
+                        const firstDate = entries[0]?.date || new Date().toLocaleDateString('de-DE');
+                        setRosterJumpDate(firstDate);
+                        setRosterKey(k => k + 1); // Force WeeklyRoster remount with new date
+                        setIsImporting(false);
+                        setActiveTab('roster');
                     } catch (error) {
                         showToast("Fehler beim Import", 'error');
                         setIsImporting(false);
@@ -97,7 +104,14 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose }) => {
 
     const handleAddNew = () => {
         const newId = `Neu_${Date.now()}`;
-        const newStaff: Staff = { id: newId, name: 'Neuer MA', role: 'OTA', skills: {}, isSaalleitung: false, isManagement: false, isMFA: false, isJoker: false, isSick: false, workDays: ['Mo', 'Di', 'Mi', 'Do', 'Fr'], preferredRooms: [], leadDepts: [], departmentPriority: [], recoveryDays: [], shifts: {}, vacations: [] };
+        const newStaff: Staff = { 
+            id: newId, name: 'Neuer MA', role: 'OTA', skills: {},
+            areaType: 'UNIVERSAL', qualificationLevel: '', isTrainee: false, contractType: 'FULL',
+            preferredLocations: [], avoidLocations: [], overtimeBalance: 0,
+            isSaalleitung: false, isManagement: false, isMFA: false, isJoker: false, isSick: false, 
+            workDays: ['Mo', 'Di', 'Mi', 'Do', 'Fr'], preferredRooms: [], leadDepts: [], 
+            departmentPriority: [], recoveryDays: [], shifts: {}, vacations: [] 
+        };
         updateStaffList([newStaff, ...staffList]); setEditingId(newId); setFormData(newStaff);
         // Reset search term so the new entry is visible and scrolls to top
         setSearchTerm('');
@@ -287,7 +301,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose }) => {
 
                     {activeTab === 'roster' && (
                         <div className="h-full">
-                            <WeeklyRoster staffList={staffList} onBack={() => setActiveTab('list')} isEmbedded onImport={() => shiftInputRef.current?.click()} />
+                            <WeeklyRoster key={rosterKey} currentDate={rosterJumpDate} staffList={staffList} onBack={() => setActiveTab('list')} isEmbedded onImport={() => shiftInputRef.current?.click()} />
                         </div>
                     )}
 
