@@ -114,9 +114,13 @@ const isEligibleOnDay = (
     // Part-time fixed days
     if (staff.contractType === 'PART_TIME' && staff.fixedDays && !staff.fixedDays.includes(day)) return false;
 
-    // Explicit shift is an absence
+    // Explicit shift is an absence — check both our known set AND real clinic code patterns
     const shift = getStaffShiftForDay(plan, staff.id, day);
-    if (shift && ABSENT_SHIFTS.has(shift)) return false;
+    if (shift) {
+        if (ABSENT_SHIFTS.has(shift)) return false;
+        // Clinic exports use codes like BD1, BD2, KK, KO, AU etc. — treat as absent
+        if (shift.startsWith('BD') || shift.startsWith('KK') || shift.startsWith('KO') || shift === 'AU') return false;
+    }
 
     // Check vacation
     const weekDays = getWeekDays(plan.weekStart);
@@ -196,6 +200,49 @@ const resolveShiftForLocation = (
             // OR / EXTERNAL → standard early shift
             return 'F7';
     }
+};
+
+// ── Shift ↔ Location compatibility ──────────────────────────────────────────
+
+/**
+ * Returns true when a staff member's pre-assigned Dienstplan shift is compatible
+ * with being placed in the given location.
+ *
+ * Rules (from clinic spec):
+ *   AF7        → any AWR slot (early AWR 07:00–15:30)
+ *   AT19       → AWR_AT19 only (mid AWR 08:30–17:00)
+ *   AT11       → AWR_AT11 only (late AWR 11:30–20:00)
+ *   T11        → OR or EXTERNAL only (late OR 11:30–20:00, Mon–Thu)
+ *   F7/T10/R1  → OR, EXTERNAL, or early AWR (AWR_F7 / AWR_8)
+ *   everything else (unknown clinic codes) → OR or EXTERNAL (treated as F7)
+ *   absent shifts (OFF/SICK/BD etc.) → blocked by isEligibleOnDay already
+ */
+const isShiftCompatibleWithLocation = (
+    shift: ShiftType | undefined,
+    location: Location
+): boolean => {
+    if (!shift) return true; // No pre-assigned shift: let canStaffWorkAtLocation decide
+
+    // These should already be excluded by isEligibleOnDay, belt-and-suspenders
+    if (ABSENT_SHIFTS.has(shift)) return false;
+    // BD variants not caught by exact Set match
+    if (shift.startsWith('BD') || shift.startsWith('KK') || shift.startsWith('K ') || shift === 'AU') return false;
+
+    // AWR mid shift → only AWR_AT19
+    if (shift === 'AT19') return location.id === 'AWR_AT19';
+    // AWR late shift → only AWR_AT11
+    if (shift === 'AT11') return location.id === 'AWR_AT11';
+    // AWR early shift → any AWR location
+    if (shift === 'AF7') return location.type === 'AWR';
+    // Late OR shift → OR or EXTERNAL only
+    if (shift === 'T11') return location.type === 'OR' || location.type === 'EXTERNAL';
+    // Standard early / long shifts → OR, EXTERNAL, or early AWR rows
+    return (
+        location.type === 'OR' ||
+        location.type === 'EXTERNAL' ||
+        location.id === 'AWR_F7' ||
+        location.id === 'AWR_8'
+    );
 };
 
 // ── Main auto-assignment algorithm ────────────────────────────────────────────
@@ -326,12 +373,18 @@ export const autoAssignWeek = (
             const candidates = regularStaff
                 .filter(s => !assignedPerDay[day].has(s.id))
                 .filter(s => canStaffWorkAtLocation(s, location))
+                // ── Shift-location compatibility: respect the real Dienstplan shift
+                .filter(s => isShiftCompatibleWithLocation(
+                    getStaffShiftForDay(plan, s.id, day),
+                    location
+                ))
                 .filter(s => {
                     // After on-call+1: can only be late or OR (not T10/R1-designated)
                     if (dayConstraints.lateOrOrOnly.has(s.id)) {
-                        // Only allow assignment to OR or AWR late slot
-                        const shift = resolveShiftForLocation(location, s, day);
-                        return location.type === 'OR' || location.type === 'AWR' && shift !== 'T10' && shift !== 'R1';
+                        return location.type === 'OR' ||
+                            (location.type === 'AWR' && !['T10', 'R1'].includes(
+                                getStaffShiftForDay(plan, s.id, day) ?? ''
+                            ));
                     }
                     return true;
                 })
@@ -340,7 +393,10 @@ export const autoAssignWeek = (
             if (candidates.length === 0) continue;
 
             const chosen = candidates[0];
-            const shiftCode = resolveShiftForLocation(location, chosen, day);
+            // Use the staff member's real Dienstplan shift if available,
+            // otherwise auto-resolve one that fits the location
+            const existingShift = getStaffShiftForDay(plan, chosen.id, day);
+            const shiftCode = existingShift ?? resolveShiftForLocation(location, chosen, day);
 
             // Record shift for the day
             plan = setStaffShiftForDay(plan, chosen.id, day, shiftCode);
