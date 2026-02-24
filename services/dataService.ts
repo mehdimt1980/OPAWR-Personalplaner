@@ -16,18 +16,27 @@ const StaffSchema = z.object({
     name: z.string().min(1),
     role: z.string().default('Mitarbeiter'),
     phone: z.string().optional(),
-    skills: z.record(z.string(), QualificationLevelSchema),
+    // OPAWR fields (required by auto-assignment engine)
+    areaType: z.enum(['OR', 'AWR', 'UNIVERSAL']).default('UNIVERSAL'),
+    qualificationLevel: QualificationLevelSchema,
+    isTrainee: z.boolean().default(false),
+    contractType: z.enum(['FULL', 'PART_TIME']).default('FULL'),
+    preferredLocations: z.array(z.string()).default([]),
+    avoidLocations: z.array(z.string()).default([]),
+    overtimeBalance: z.number().default(0),
+    // Legacy / compat fields
+    skills: z.record(z.string(), QualificationLevelSchema).default({}),
     isSaalleitung: z.boolean().default(false),
-    isManagement: z.boolean().default(false), // NEW
+    isManagement: z.boolean().default(false),
     isMFA: z.boolean().default(false),
     isJoker: z.boolean().default(false),
     isSick: z.boolean().default(false),
     workDays: z.array(z.string()).default(['Mo', 'Di', 'Mi', 'Do', 'Fr']),
     preferredRooms: z.array(z.string()).default([]),
     leadDepts: z.array(z.string()).default([]),
-    departmentPriority: z.array(z.string()).default([]), // NEW
-    tags: z.array(z.string()).optional().default([]), // NEW
-    requiresCoworkerId: z.string().optional(), // NEW
+    departmentPriority: z.array(z.string()).default([]),
+    tags: z.array(z.string()).optional().default([]),
+    requiresCoworkerId: z.string().optional(),
     recoveryDays: z.array(z.string()).default([]),
     shifts: z.record(z.string(), z.string()).default({}),
     vacations: z.array(z.object({
@@ -404,10 +413,25 @@ export const parseStaffCsv = (
     const staffList: Staff[] = [];
     const delimiter = lines[0]?.includes(';') ? ';' : ',';
 
-    let phoneIndex = 7; 
+    // Detect column positions from header row
     const headers = lines[0].toLowerCase().split(delimiter);
-    const foundPhone = headers.findIndex(h => h.includes('handy') || h.includes('telefon') || h.includes('phone'));
-    if (foundPhone !== -1) phoneIndex = foundPhone;
+    let phoneIndex = 7;
+    let einsatzbereichIndex = -1;
+
+    headers.forEach((h, i) => {
+        if (h.includes('handy') || h.includes('telefon') || h.includes('phone')) phoneIndex = i;
+        if (h.includes('einsatz') || h.includes('bereich') || h.includes('area')) einsatzbereichIndex = i;
+    });
+
+    // If old template (Handy at index 7, no Einsatzbereich), keep phoneIndex=7.
+    // If new template has Einsatzbereich at 7 and Handy at 8, adjust phoneIndex.
+    if (einsatzbereichIndex === 7 && phoneIndex === 7) phoneIndex = 8;
+
+    const areaTypeMap: Record<string, string> = {
+        'or': 'OR', 'op': 'OR', 'saal': 'OR',
+        'awr': 'AWR', 'aufwach': 'AWR', 'aufwachraum': 'AWR',
+        'universal': 'UNIVERSAL', 'universell': 'UNIVERSAL', 'all': 'UNIVERSAL', 'alle': 'UNIVERSAL'
+    };
 
     const matchesKeyword = (text: string, keywords: string[]) => {
         const lower = text.toLowerCase();
@@ -431,6 +455,13 @@ export const parseStaffCsv = (
         
         const skillsRaw = cols[5] ? cols[5].split(',') : [];
         const prefRooms = cols[6] ? cols[6].split(',').map(r => r.trim()) : [];
+
+        // Parse Einsatzbereich (area type) — column 7 in new template, or auto-detect
+        const einsatzRaw = einsatzbereichIndex !== -1 && cols[einsatzbereichIndex]
+            ? cols[einsatzbereichIndex].toLowerCase().trim()
+            : '';
+        const areaType = (areaTypeMap[einsatzRaw] || 'UNIVERSAL') as 'OR' | 'AWR' | 'UNIVERSAL';
+
         const phone = cols[phoneIndex] || undefined;
 
         const skills: Record<string, QualificationLevel> = {};
@@ -460,6 +491,15 @@ export const parseStaffCsv = (
             role,
             skills,
             phone,
+            // OPAWR fields — critical for auto-assignment engine
+            areaType,
+            qualificationLevel: isSaalleitung ? 'Expert' : '',
+            isTrainee: false,
+            contractType: 'FULL',
+            preferredLocations: prefRooms,
+            avoidLocations: [],
+            overtimeBalance: 0,
+            // Legacy / compat fields
             isSaalleitung,
             isManagement: false,
             isMFA,
@@ -579,9 +619,10 @@ export const exportReschedulingToCSV = (suggestions: ReschedulingOption[]) => {
     window.URL.revokeObjectURL(url);
 };
 
-export const getStaffCsvTemplate = (): string => `Name;Rolle;Zertifikate;Arbeitstage;LeitungsAbteilungen;Fähigkeiten;BevorzugteSäle;Handy
-Jennifer;Expert;OTA;Mo,Di,Mi,Do,Fr;;UCH:Expert,RACH:Expert;;+491701234567
-Rita;Saalleitung;Praxisanleiterin;Mo,Di,Mi,Do;UCH;UCH:Expert,EPZ:Expert;SAAL 1;+4916099887766`;
+export const getStaffCsvTemplate = (): string => `Name;Rolle;Zertifikate;Arbeitstage;LeitungsAbteilungen;Fähigkeiten;BevorzugteSäle;Einsatzbereich;Handy
+Marc Müller;OTA;OTA;Mo,Di,Mi,Do,Fr;;UCH:Expert;;UNIVERSAL;+491701234567
+Gabi Kremer;Saalleitung;OTA;Mo,Di,Mi,Do;UCH;UCH:Expert;AWR1;AWR;+4916099887766
+Anna Schneider;OTA;OTA;Mo,Di,Mi,Do,Fr;;UCH:Junior;;OR;`;
 
 export const getVacationCsvTemplate = (): string => `Name;Startdatum;Enddatum;Art\nJennifer;24.12.2025;31.12.2025;Urlaub\nRita;01.01.2026;07.01.2026;Fortbildung`;
 export const getShiftCsvTemplate = (): string => `Name;Datum;SchichtKuerzel\nRita;18.11.2025;S44\nJennifer;18.11.2025;OFF\nAnna;19.11.2025;BD1`;
