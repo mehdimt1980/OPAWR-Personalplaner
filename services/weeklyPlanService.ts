@@ -311,10 +311,12 @@ export const isStaffAvailableOnDay = (staff: Staff, plan: WeeklyPlan | null, day
 /** Check if a staff member can be assigned to a location */
 export const canStaffWorkAtLocation = (staff: Staff, location: Location): boolean => {
     if (staff.isManagement) return false;
-    if (staff.areaType === 'UNIVERSAL') return true;
-    if (staff.areaType === 'OR' && location.type === 'OR') return true;
-    if (staff.areaType === 'AWR' && (location.type === 'AWR' || location.type === 'EXTERNAL')) return true;
-    if (staff.areaType === 'OR' && location.type === 'EXTERNAL') return true;
+    // Treat missing areaType (legacy / pre-migration staff) as UNIVERSAL so they are always assignable
+    const area = staff.areaType ?? 'UNIVERSAL';
+    if (area === 'UNIVERSAL') return true;
+    if (area === 'OR' && location.type === 'OR') return true;
+    if (area === 'AWR' && (location.type === 'AWR' || location.type === 'EXTERNAL')) return true;
+    if (area === 'OR' && location.type === 'EXTERNAL') return true;
     return false;
 };
 
