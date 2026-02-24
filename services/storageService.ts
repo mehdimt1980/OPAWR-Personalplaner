@@ -489,6 +489,25 @@ export const saveStaffList = async (staff: Staff[]): Promise<boolean> => {
     } catch (error) { return true; }
 };
 
+/** Ensures every staff object has all OPAWR fields, filling in safe defaults for legacy data */
+const normalizeStaff = (raw: any[]): Staff[] =>
+    raw.map(s => ({
+        workDays: ['Mo', 'Di', 'Mi', 'Do', 'Fr'],
+        preferredLocations: [],
+        avoidLocations: [],
+        overtimeBalance: 0,
+        isTrainee: false,
+        contractType: 'FULL',
+        qualificationLevel: '',
+        recoveryDays: [],
+        shifts: {},
+        vacations: [],
+        tags: [],
+        ...s,
+        // Always override areaType: if missing or invalid, default to UNIVERSAL
+        areaType: (['OR', 'AWR', 'UNIVERSAL'].includes(s.areaType) ? s.areaType : 'UNIVERSAL') as Staff['areaType'],
+    } as Staff));
+
 export const loadStaffList = async (): Promise<Staff[] | null> => {
     let staffList: Staff[] | null = null;
     try {
@@ -496,8 +515,8 @@ export const loadStaffList = async (): Promise<Staff[] | null> => {
         if (response.ok) {
             const list = await response.json();
             if (list && list.length > 0) {
-                staffList = list;
-                await db.staff.put({ identifier: 'main_list', staff: list });
+                staffList = normalizeStaff(list);
+                await db.staff.put({ identifier: 'main_list', staff: staffList });
             }
         }
     } catch (e) {}
@@ -505,7 +524,7 @@ export const loadStaffList = async (): Promise<Staff[] | null> => {
     if (!staffList) {
         try {
             const localData = await db.staff.get('main_list');
-            if (localData) staffList = localData.staff;
+            if (localData) staffList = normalizeStaff(localData.staff);
         } catch(e) {}
     }
     return staffList;
