@@ -5,7 +5,7 @@ import { createBackup, restoreBackup, clearAllData } from '../services/storageSe
 import { usePlan } from '../contexts/PlanContext';
 import { useStaff } from '../contexts/StaffContext';
 import { RoomConfig, AppConfig, ShiftDef, SpecialRule, ProcedureRule, LogicConfig, CsvMappingConfig } from '../types';
-import { DEFAULT_APP_CONFIG, DEFAULT_DEPARTMENTS } from '../constants';
+import { DEFAULT_APP_CONFIG, DEFAULT_DEPARTMENTS, DEFAULT_WEIGHTS, DEFAULT_LOGIC_CONFIG, DEFAULT_TIMELINE, DEFAULT_CSV_MAPPING } from '../constants';
 import { MOCK_STAFF, DEFAULT_ROOM_CONFIGS } from '../data/seedData';
 import { Database, X, Settings, Clock, Sliders, BrainCircuit, Euro, FileSpreadsheet, Bot } from 'lucide-react';
 
@@ -41,11 +41,12 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({ isOpen
                 ...appConfig,
                 departments: appConfig.departments?.length ? appConfig.departments : DEFAULT_DEPARTMENTS,
                 shifts: appConfig.shifts || DEFAULT_APP_CONFIG.shifts,
-                logic: appConfig.logic || DEFAULT_APP_CONFIG.logic,
-                procedureRules: appConfig.procedureRules || DEFAULT_APP_CONFIG.procedureRules,
-                csvMapping: appConfig.csvMapping || DEFAULT_APP_CONFIG.csvMapping,
-                timeline: appConfig.timeline || DEFAULT_APP_CONFIG.timeline,
-                weights: { ...DEFAULT_APP_CONFIG.weights, ...appConfig.weights }
+                logic: appConfig.logic || DEFAULT_LOGIC_CONFIG,
+                procedureRules: appConfig.procedureRules || [],
+                csvMapping: appConfig.csvMapping || DEFAULT_CSV_MAPPING,
+                timeline: appConfig.timeline || DEFAULT_TIMELINE,
+                weights: { ...DEFAULT_WEIGHTS, ...appConfig.weights },
+                constraints: appConfig.constraints || {},
             } : DEFAULT_APP_CONFIG);
         }
     }, [isOpen, appConfig]);
