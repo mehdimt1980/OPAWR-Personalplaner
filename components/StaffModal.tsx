@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { Staff, ShiftType } from '../types';
+import { DEFAULT_DEPARTMENTS } from '../constants';
 import { getStaffCsvTemplate, parseStaffCsv, getShiftCsvTemplate, parseShiftCsv, readCsvFile } from '../services/dataService';
 import { bulkImportShifts } from '../services/storageService';
 import { useStaff } from '../contexts/StaffContext';
@@ -228,7 +229,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose }) => {
                                         const expertSkillCount = Object.values(staff.skills).filter(lvl => lvl === 'Expert' || lvl === 'Expert+' || lvl === 'E').length;
                                         
                                         return editingId === staff.id ? (
-                                            <StaffEditForm key={staff.id} formData={formData} setFormData={setFormData} activeDepartments={appConfig.departments} onSave={handleSaveEdit} onCancel={() => setEditingId(null)} />
+                                            <StaffEditForm key={staff.id} formData={formData} setFormData={setFormData} activeDepartments={appConfig.departments ?? DEFAULT_DEPARTMENTS} onSave={handleSaveEdit} onCancel={() => setEditingId(null)} />
                                         ) : (
                                             <div key={staff.id} className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between hover:shadow-lg transition-all group border-l-4 border-l-transparent hover:border-l-blue-500">
                                                 <div className="flex items-center gap-6">
