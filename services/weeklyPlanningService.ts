@@ -292,12 +292,13 @@ export const autoAssignWeek = (
         // ── Score function: returns a numeric priority for a staff+location combo
         const score = (staff: Staff, location: Location): number => {
             let s = 0;
+            const area = staff.areaType ?? 'UNIVERSAL';
 
             // Heavily prefer AWR-only staff for AWR
-            if (staff.areaType === 'AWR' && location.type === 'AWR') s += 10000;
+            if (area === 'AWR' && location.type === 'AWR') s += 10000;
             // Penalize putting UNIVERSAL staff in AWR if AWR-only staff is available
             //   (but we still allow it for rotation)
-            if (staff.areaType === 'UNIVERSAL' && location.type === 'AWR') s += 100;
+            if (area === 'UNIVERSAL' && location.type === 'AWR') s += 100;
 
             // Rotation: favor staff who've done this location less recently
             const historyCount = countLocationAssignments(staff, location.id, recentHistory);
