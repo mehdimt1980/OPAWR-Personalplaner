@@ -191,6 +191,8 @@ interface QuickAssignProps {
     onClose: () => void;
 }
 
+const ABSENCE_CODES = new Set(['BD', 'BD1', 'BD2', 'BD_FR', 'KK', 'KO', 'AU', 'URLAUB', 'OFF', 'SICK', 'RECOVERY', 'F5']);
+
 const QuickAssignDropdown: React.FC<QuickAssignProps> = ({ locationId, day, onAssign, onClose }) => {
     const { staffList } = useStaff();
     const { currentWeekPlan, locations } = usePlan();
@@ -202,12 +204,20 @@ const QuickAssignDropdown: React.FC<QuickAssignProps> = ({ locationId, day, onAs
             .map(a => a.staffId)
     );
 
+    // Build shift-for-day map from dailyShifts bridge (populated by handleAutoAssign roster import)
+    const shiftsOnDay: Record<string, string> = (currentWeekPlan as any).dailyShifts?.[day] ?? {};
+
     const eligible = staffList.filter(s => {
         if (assignedToday.has(s.id)) return false;
         if (s.isManagement) return false;
+        // Exclude staff who are absent / on non-working shift today
+        const shiftToday = shiftsOnDay[s.id];
+        if (shiftToday && ABSENCE_CODES.has(shiftToday)) return false;
         if (!location) return true;
-        if (location.type === 'AWR' && s.areaType === 'OR') return false;
-        if (location.type === 'OR' && s.tags?.includes('AWR_ONLY')) return false;
+        // Normalise areaType — legacy staff without field are treated as UNIVERSAL
+        const area = s.areaType ?? 'UNIVERSAL';
+        if (location.type === 'AWR' && area === 'OR') return false;
+        if (location.type === 'OR' && area === 'AWR') return false;
         return true;
     });
 
@@ -239,7 +249,10 @@ const QuickAssignDropdown: React.FC<QuickAssignProps> = ({ locationId, day, onAs
                                         {s.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                     </span>
                                     <span className="flex-1 truncate">{s.name}</span>
-                                    <span className="text-xs text-gray-400">{s.areaType}</span>
+                                    {shiftsOnDay[s.id] && (
+                                        <ShiftBadge shiftCode={shiftsOnDay[s.id]} />
+                                    )}
+                                    <span className="text-xs text-gray-400">{s.areaType ?? 'UNI'}</span>
                                 </button>
                             </li>
                         ))}
