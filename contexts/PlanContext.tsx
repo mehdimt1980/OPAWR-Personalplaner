@@ -5,7 +5,7 @@ import { autoAssignWeek } from '../services/weeklyPlanningService';
 import { validateWeeklyPlan, type WeeklyValidationIssue } from '../services/validationService';
 import {
     loadAppConfig, saveAppConfig, loadPairings, savePairing, deletePairing,
-    loadLocationConfig, saveLocationConfig
+    loadLocationConfig, saveLocationConfig, loadRoster
 } from '../services/storageService';
 import {
     saveWeeklyPlan, loadWeeklyPlan, deleteWeeklyPlan, createEmptyWeeklyPlan,
@@ -196,12 +196,32 @@ export const PlanProvider: React.FC<{ children: ReactNode; isAuthenticated: bool
     // ── Auto-assign ───────────────────────────────────────────────────────────
     const handleAutoAssign = useCallback(async () => {
         saveToHistory();
+
+        // ── Bridge: load real Dienstplan shifts from the OLD roster collection
+        // and merge them into the plan's dailyShifts before running auto-assign.
+        // Without this the engine sees empty shifts and ignores the real schedule.
+        const weekDays = getWeekDays(currentWeekStart);
+        let enrichedPlan: WeeklyPlan = {
+            ...currentWeekPlan,
+            dailyShifts: { ...currentWeekPlan.dailyShifts },
+        };
+        await Promise.all(
+            weekDays.map(async ({ day, date }) => {
+                const roster = await loadRoster(date);
+                if (roster?.shifts) {
+                    for (const [staffId, shift] of Object.entries(roster.shifts)) {
+                        enrichedPlan = setStaffShiftForDay(enrichedPlan, staffId, day, shift as ShiftType);
+                    }
+                }
+            })
+        );
+
         const newPlan = autoAssignWeek(
             currentWeekStart,
             locations,
             staffList,
             appConfig,
-            { existingPlan: currentWeekPlan, pairings }
+            { existingPlan: enrichedPlan, pairings }
         );
         setCurrentWeekPlan(newPlan);
         setSaveStatus('saving');
