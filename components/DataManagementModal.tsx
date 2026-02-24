@@ -26,7 +26,7 @@ interface DataManagementModalProps {
 }
 
 export const DataManagementModal: React.FC<DataManagementModalProps> = ({ isOpen, onClose, onRestoreComplete }) => {
-    const { roomConfig, updateRoomConfig, appConfig, updateAppConfig } = usePlan();
+    const { locations, updateLocations, appConfig, updateAppConfig } = usePlan();
     const { updateStaffList } = useStaff();
     const [activeTab, setActiveTab] = useState<'backup' | 'rooms' | 'shifts' | 'rules' | 'logic' | 'procedures' | 'system' | 'agent'>('backup');
     
@@ -36,7 +36,7 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({ isOpen
 
     useEffect(() => {
         if (isOpen) {
-            setLocalRooms(roomConfig || []);
+            setLocalRooms([]);
             setLocalRules(appConfig ? {
                 ...appConfig,
                 departments: appConfig.departments?.length ? appConfig.departments : DEFAULT_DEPARTMENTS,
@@ -48,13 +48,12 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({ isOpen
                 weights: { ...DEFAULT_APP_CONFIG.weights, ...appConfig.weights }
             } : DEFAULT_APP_CONFIG);
         }
-    }, [isOpen, roomConfig, appConfig]);
+    }, [isOpen, appConfig]);
 
     if (!isOpen) return null;
 
     // --- SHARED PERSISTENCE ---
     const saveConfiguration = async () => {
-        await updateRoomConfig(localRooms);
         await updateAppConfig(localRules);
         alert("Konfiguration gespeichert!");
     };
@@ -63,7 +62,6 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({ isOpen
     const handleSeed = async () => {
         if (!window.confirm("Standard-Daten laden? Dies überschreibt Personal und Einstellungen.")) return;
         await updateStaffList(MOCK_STAFF);
-        await updateRoomConfig(DEFAULT_ROOM_CONFIGS);
         await updateAppConfig(DEFAULT_APP_CONFIG);
         onRestoreComplete();
         onClose();
