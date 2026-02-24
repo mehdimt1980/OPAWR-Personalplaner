@@ -257,26 +257,28 @@ export const parseOperationsCsv = (
  */
 const parseComplexRosterCsv = (lines: string[]): { name: string, date: string, shift: ShiftType }[] => {
     const result: { name: string, date: string, shift: ShiftType }[] = [];
-    
+    // Deduplication: first meaningful row per staff+date wins
+    const seen = new Set<string>();
+
     // 1. Find Header Line (Look for 'VNr' or 'Kürzel')
     let headerIdx = -1;
     for (let i = 0; i < Math.min(15, lines.length); i++) {
-        const line = lines[i].replace(/["']/g, ''); 
+        const line = lines[i].replace(/["']/g, '');
         if (line.includes('VNr') || line.includes('Kürzel') || line.includes('Kurzel') || line.includes('Ist Dienst')) {
             headerIdx = i;
             break;
         }
     }
-    
+
     if (headerIdx === -1) {
         console.warn("Complex Parser: Header row not found.");
-        return []; 
+        return [];
     }
 
     const headerLine = lines[headerIdx];
     const delimiter = headerLine.includes(';') ? ';' : ',';
     const headers = headerLine.split(delimiter).map(h => h.trim().replace(/^"|"$/g, ''));
-    
+
     const findIndexFuzzy = (searchTerms: string[]) => {
         return headers.findIndex(h => {
             const normalizedHeader = h.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -284,10 +286,14 @@ const parseComplexRosterCsv = (lines: string[]): { name: string, date: string, s
         });
     };
 
-    const colName = findIndexFuzzy(['Name', 'Nachname', 'Mitarbeiter']);
-    const colCode = findIndexFuzzy(['kurzel', 'kuerzel', 'code', 'krz']);
-    const colType = findIndexFuzzy(['elementtyp', 'typ', 'art']);
-    const colStart = findIndexFuzzy(['zeitvon', 'zeit-von', 'beginn', 'start']);
+    const colName     = findIndexFuzzy(['name', 'nachname', 'mitarbeiter']);
+    const colCode     = findIndexFuzzy(['kurzel', 'kuerzel', 'code', 'krz']);
+    const colStart    = findIndexFuzzy(['zeitvon', 'zeit-von', 'beginn', 'start']);
+    const colDauer    = findIndexFuzzy(['dauer', 'duration']);
+    // FIXED: search 'elementtyp' specifically so we find col 19, not the shorter 'Typ' column (col 7)
+    const colElementTyp = findIndexFuzzy(['elementtyp']);
+    // Keep col 7 (Typ) reference for sick/off fallback
+    const colTyp      = findIndexFuzzy(['typ', 'art']);
 
     if (colName === -1 || colCode === -1 || colStart === -1) {
         console.warn("Complex Parser: Critical columns missing.", { colName, colCode, colStart });
@@ -301,61 +307,89 @@ const parseComplexRosterCsv = (lines: string[]): { name: string, date: string, s
         const cols = line.split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
         if (cols.length < colStart) continue;
 
-        const rawName = cols[colName]; 
-        const code = cols[colCode]; 
-        const type = colType !== -1 ? cols[colType] : ''; 
-        const rawStart = cols[colStart]; 
+        const rawName    = cols[colName] ?? '';
+        const code       = cols[colCode] ?? '';
+        const elementTyp = colElementTyp !== -1 ? (cols[colElementTyp] ?? '') : '';
+        const rawStart   = cols[colStart] ?? '';
+        const dauerStr   = colDauer !== -1 ? (cols[colDauer] ?? '') : '';
 
-        if (type === 'Pause' || type.includes('Pause')) continue;
+        // Skip break rows (Pause) and the overnight on-call sub-segment (Bereitschaft)
+        // — the main shift code is already captured by the preceding Regeldienst row.
+        if (elementTyp === 'Pause' || elementTyp === 'Bereitschaft') continue;
 
+        // Skip very short "handoff" segments (< 1 h) — e.g. TB3 next-day return at 08:15–08:30
+        const dauer = parseFloat(dauerStr.replace(',', '.'));
+        if (!isNaN(dauer) && dauer > 0 && dauer < 1.0) continue;
+
+        // Extract date from "DD.MM.YYYY HH:MM" (or similar)
         let date = '';
         const dateMatch = rawStart.match(/(\d{1,2}\.\d{1,2}\.\d{2,4})/);
         if (dateMatch) {
-            let d = dateMatch[1];
-            const parts = d.split('.');
-            if (parts[2].length === 2) { 
-                date = `${parts[0].padStart(2,'0')}.${parts[1].padStart(2,'0')}.20${parts[2]}`;
-            } else {
-                date = `${parts[0].padStart(2,'0')}.${parts[1].padStart(2,'0')}.${parts[2]}`;
-            }
+            const parts = dateMatch[1].split('.');
+            date = `${parts[0].padStart(2,'0')}.${parts[1].padStart(2,'0')}.${parts[2].length === 2 ? '20' + parts[2] : parts[2]}`;
         } else {
-            continue; 
+            continue;
         }
 
+        // Normalise name: "Lastname, Firstname" → "Firstname Lastname"
         let name = rawName.replace(/^[\d-]+/, '').trim();
         if (name.includes(',')) {
-            const parts = name.split(',').map(p => p.trim());
-            if (parts.length === 2) {
-                name = `${parts[1]} ${parts[0]}`; 
-            }
+            const [last, first] = name.split(',').map(p => p.trim());
+            name = `${first} ${last}`;
         }
+
+        // FIXED: strip trailing dots from Kürzel  (e.g. "AT11." → "AT11", "TB3..." → "TB3", "AF7." → "AF7")
+        const c = code.toUpperCase().replace(/\s+/g, '').replace(/\.+$/, '');
 
         let shift: ShiftType | null = null;
-        const c = code.toUpperCase().replace(/\s+/g, ''); 
 
-        // 1. Group Absences (Sick)
-        if (['K', 'KK', 'KO', 'AU', 'KRA'].some(x => c.startsWith(x))) {
+        if (['K', 'KK', 'KO', 'KRA'].some(x => c === x || c.startsWith(x))) {
+            // Krank / Krankheit
             shift = 'SICK';
-        }
-        // 2. Group Absences (Off) 
-        else if (['UL', 'WB', 'FB', '-', 'ÜFM', 'ÜF', 'AA', 'AG', 'EZ', 'FREI'].some(x => c.startsWith(x))) {
+        } else if (c === 'AU') {
+            // Krankheit mit Attest (Arbeitsunfähigkeit)
+            shift = 'SICK';
+        } else if (c.startsWith('UL')) {
+            // Urlaub → map to dedicated URLAUB code (not generic OFF)
+            shift = 'URLAUB';
+        } else if (['-', 'WB', 'FB', 'SU', 'ÜFM', 'ÜF', 'AA', 'AG', 'EZ', 'FREI'].some(x => c === x || c.startsWith(x))) {
+            // Various "free / excused" Fehlzeit codes
             shift = 'OFF';
-        }
-        // 3. Work Shifts - Pass through EXACT code
-        else if (c.length > 0) {
-            shift = c as ShiftType; 
+        } else if (/^TB\d/.test(c)) {
+            // "Komplex" Bereitschaftsdienst: TB1 (F7+BD), TB3 (T11+BD), TB4/5/7 variants → BD
+            shift = 'BD';
+        } else if (['F10', 'F44', 'BR1', 'A1'].includes(c)) {
+            // Non-standard early-shift codes → treat as standard F7
+            shift = 'F7';
+        } else if (c === 'T1') {
+            // Long Tagdienst variant → T10
+            shift = 'T10';
+        } else if (c === 'S3') {
+            // Spätdienst (OR) variant → T11
+            shift = 'T11';
+        } else if (c.length > 0) {
+            // Pass through known codes: F7, AF7, AT11, AT19, T11, T10, R1, R3, F5, BD, BD_FR …
+            shift = c as ShiftType;
         }
 
+        // Fallback: derive from column values when code was unrecognised or empty
         if (!shift) {
-            if (type.toLowerCase().includes('fehlzeit') || type.toLowerCase().includes('frei')) {
+            const typ = colTyp !== -1 ? (cols[colTyp] ?? '').toLowerCase() : '';
+            if (elementTyp.toLowerCase().includes('fehlzeit') || typ.includes('frei')) {
                 shift = 'OFF';
-            } else if (type.toLowerCase().includes('krank')) {
+            } else if (typ.includes('urlaub')) {
+                shift = 'URLAUB';
+            } else if (typ.includes('krank')) {
                 shift = 'SICK';
             }
         }
 
         if (shift && name && date) {
-            result.push({ name, date, shift });
+            const key = `${name}__${date}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                result.push({ name, date, shift });
+            }
         }
     }
     return result;
