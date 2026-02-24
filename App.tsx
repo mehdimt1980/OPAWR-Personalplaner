@@ -27,6 +27,8 @@ const AppContent: React.FC<{ logout: () => void; userRole: string }> = ({ logout
         isLoadingPlan
     } = usePlan();
 
+    const { staffList } = useStaff();
+
     const [viewMode, setViewMode] = useState<'weekly' | 'analytics'>('weekly');
     const [showStaffModal, setShowStaffModal] = useState(false);
     const [showDataModal, setShowDataModal] = useState(false);
@@ -89,7 +91,7 @@ const AppContent: React.FC<{ logout: () => void; userRole: string }> = ({ logout
                         <div className="flex-1 overflow-hidden">
                             <AnalyticsDashboard
                                 currentDate={new Date().toLocaleDateString('de-DE')}
-                                staffList={[]}
+                                staffList={staffList}
                                 onClose={() => setViewMode('weekly')}
                             />
                         </div>
