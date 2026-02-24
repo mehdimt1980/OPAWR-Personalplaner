@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="google" content="notranslate" />
+    <title>ORaigent Staff Planner</title>
+    
+    <!-- PWA / Native Settings -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    
+    <!-- iOS Native Experience -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="OR Planner">
+    <meta name="format-detection" content="telephone=no">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="importmap">
+{
+  "imports": {
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "express": "https://aistudiocdn.com/express@^5.1.0",
+    "mongoose": "https://aistudiocdn.com/mongoose@^8.20.0",
+    "cors": "https://aistudiocdn.com/cors@^2.8.5",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "dotenv/": "https://aistudiocdn.com/dotenv@^17.2.3/",
+    "multer": "https://aistudiocdn.com/multer@^2.0.2",
+    "@vercel/blob": "https://aistudiocdn.com/@vercel/blob@^2.0.0",
+    "recharts": "https://aistudiocdn.com/recharts@^2.15.0",
+    "@dnd-kit/core": "https://esm.sh/@dnd-kit/core@6.1.0?external=react,react-dom",
+    "@dnd-kit/utilities": "https://esm.sh/@dnd-kit/utilities@3.2.2?external=react,react-dom",
+    "clsx": "https://esm.sh/clsx@2.1.0",
+    "jsonwebtoken": "https://aistudiocdn.com/jsonwebtoken@^9.0.2",
+    "zod": "https://esm.sh/zod@3.22.4",
+    "vitest": "https://aistudiocdn.com/vitest@^4.0.13",
+    "@testing-library/jest-dom": "https://aistudiocdn.com/@testing-library/jest-dom@^6.9.1",
+    "@sentry/react": "https://aistudiocdn.com/@sentry/react@^8.0.0",
+    "@sentry/profiling-node": "https://aistudiocdn.com/@sentry/profiling-node@^8.0.0",
+    "@sentry/node": "https://aistudiocdn.com/@sentry/node@^8.0.0",
+    "bcryptjs": "https://aistudiocdn.com/bcryptjs@^3.0.3",
+    "jwt-decode": "https://aistudiocdn.com/jwt-decode@^4.0.0",
+    "twilio": "https://aistudiocdn.com/twilio@^5.10.6",
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "url": "https://aistudiocdn.com/url@^0.11.4",
+    "@testing-library/react": "https://aistudiocdn.com/@testing-library/react@^16.3.0",
+    "supertest": "https://aistudiocdn.com/supertest@^7.1.4",
+    "dexie": "https://esm.sh/dexie@4.0.1"
+  }
+}
+</script>
+    <style>
+      /* Custom scrollbar for horizontal layout */
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: #cbd5e1;
+          border-radius: 20px;
+      }
+
+      /* PRINT STYLES */
+      @media print {
+        @page {
+          size: landscape;
+          margin: 5mm;
+        }
+
+        body {
+          background-color: white !important;
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
+        }
+
+        /* Reset layout constraints for print to avoid cutting off content */
+        html, body, #root, main, section {
+          height: auto !important;
+          min-height: 0 !important;
+          width: 100% !important;
+          overflow: visible !important;
+          display: block !important;
+          position: static !important;
+        }
+
+        /* Hide Navigation and UI elements */
+        header, aside, footer, button, .no-print, ::-webkit-scrollbar {
+          display: none !important;
+        }
+
+        /* Room Grid - Force layout for A4 Landscape */
+        #room-grid {
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          gap: 1rem !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+
+        .room-card {
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+          height: auto !important;
+          min-height: 0 !important;
+          border: 1px solid #ccc !important;
+          box-shadow: none !important;
+          margin-bottom: 1rem !important;
+        }
+
+        .room-card-content {
+           max-height: none !important;
+           overflow: visible !important;
+        }
+        
+        /* Ensure background colors print */
+        * {
+          print-color-adjust: exact !important;
+          -webkit-print-color-adjust: exact !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="notranslate">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,98 @@
+# ------------------------------------
+# Node / NPM
+# ------------------------------------
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-lock.yaml
+
+
+# ------------------------------------
+# Build outputs (will be copied from builder)
+# ------------------------------------
+dist
+build
+.vite
+.vite-cache
+.vscode
+.eslintcache
+
+
+# ------------------------------------
+# Environment files (never include in image)
+# ------------------------------------
+.env
+.env.*
+!.env.example
+
+
+# ------------------------------------
+# Logs
+# ------------------------------------
+logs
+*.log
+*.out
+*.err
+
+
+# ------------------------------------
+# Git
+# ------------------------------------
+.git
+.gitignore
+.gitattributes
+
+
+# ------------------------------------
+# Testing
+# ------------------------------------
+coverage
+.cypress
+.playwright
+jest.config.*
+vitest.config.*
+*.spec.ts
+*.test.ts
+test
+__tests__
+**/*.test.js
+**/*.spec.js
+
+
+# ------------------------------------
+# OS / IDE junk
+# ------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode
+.idea
+*.iml
+
+
+# ------------------------------------
+# Docker
+# ------------------------------------
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+
+# ------------------------------------
+# Misc
+# ------------------------------------
+*.md
+!README.md
+LICENSE
+.editorconfig
+.prettierrc
+.eslintrc*
+
+
+# ------------------------------------
+# Azure & Deployment
+# ------------------------------------
+.azure
+azure-pipelines.yml
+

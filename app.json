@@ -1,0 +1,39 @@
+{
+  "name": "Deploy to Azure",
+  "version": "2.0.0",
+  "builds": [],
+  "env": {
+    "MONGODB_URI": {
+      "description": "MongoDB connection string",
+      "required": true
+    },
+    "JWT_SECRET": {
+      "description": "Secret key for JWT tokens",
+      "required": true
+    },
+    "GEMINI_API_KEY": {
+      "description": "Google Gemini API key for AI features",
+      "required": true
+    },
+    "TWILIO_ACCOUNT_SID": {
+      "description": "Twilio Account SID for SMS notifications",
+      "required": false
+    },
+    "TWILIO_AUTH_TOKEN": {
+      "description": "Twilio Auth Token",
+      "required": false
+    },
+    "TWILIO_PHONE_NUMBER": {
+      "description": "Twilio phone number for sending SMS",
+      "required": false
+    },
+    "NODE_ENV": {
+      "description": "Node environment",
+      "value": "production"
+    },
+    "PORT": {
+      "description": "Application port",
+      "value": "8080"
+    }
+  }
+}

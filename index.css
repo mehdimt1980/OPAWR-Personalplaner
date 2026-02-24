@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar for horizontal layout */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 20px;
+}
+
+/* PRINT STYLES */
+@media print {
+  @page {
+    size: landscape;
+    margin: 5mm;
+  }
+
+  body {
+    background-color: white !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Reset layout constraints for print to avoid cutting off content */
+  html, body, #root, main, section {
+    height: auto !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
+    display: block !important;
+    position: static !important;
+  }
+
+  /* Hide Navigation and UI elements */
+  header, aside, footer, button, .no-print, ::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Room Grid - Force layout for A4 Landscape */
+  #room-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 1rem !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .room-card {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .room-card-content {
+     max-height: none !important;
+     overflow: visible !important;
+  }
+  
+  /* Ensure background colors print */
+  * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+}

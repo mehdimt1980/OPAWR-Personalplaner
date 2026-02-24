@@ -1,0 +1,5 @@
+{
+  "name": "OR Staff Planner AI",
+  "description": "Intelligent Operating Room staffing and scheduling application. Auto-assigns qualified staff to rooms based on daily schedules and qualification constraints.",
+  "requestFramePermissions": []
+}
