@@ -126,6 +126,50 @@ export const DEFAULT_LOCATIONS: Location[] = [
 
 // ── Default App Config ───────────────────────────────────────────────────────
 
+/** Legacy department list — kept for settings components */
+export const DEFAULT_DEPARTMENTS: string[] = [
+    'Anästhesie', 'OP-Saal', 'AWR', 'HKL', 'Endoskopie',
+];
+
+export const DEFAULT_WEIGHTS: Record<string, number> = {
+    EXPERT_MATCH_BONUS: 200,
+    JUNIOR_MATCH_BONUS: 100,
+    SECONDARY_SKILL_BONUS: 50,
+    UNQUALIFIED_PENALTY: -500,
+    OP_MATCH_BONUS: 200,
+    ROOM_OWNER_BONUS: 150,
+    LEAD_ROLE_BONUS: 100,
+    WRONG_LEAD_PENALTY: -300,
+    DOUBLE_LEAD_PENALTY: -400,
+    DOUBLE_LEAD_SPRINGER_PENALTY: -200,
+    PAIRING_BONUS: 300,
+    PREFERRED_ROOM_BONUS: 100,
+    DEPT_PRIORITY_BONUS: 50,
+    DEPT_PRIORITY_MISMATCH_PENALTY: -100,
+    SPRINGER_EXPERT_BONUS: 150,
+    SPRINGER_JUNIOR_BONUS: 75,
+    JOKER_PENALTY: -50,
+};
+
+export const DEFAULT_LOGIC_CONFIG = {
+    saalleitung: ['saalleitung', 'sl', 'leitung'],
+    joker: ['joker', 'student', 'azubi'],
+    mfa: ['mfa', 'arzthelfer', 'arzthelferin'],
+    exclusionKeywords: ['admin', 'sekretariat'],
+    specialRules: [] as any[],
+};
+
+export const DEFAULT_TIMELINE = { startHour: 7, endHour: 20 };
+
+export const DEFAULT_CSV_MAPPING: Record<string, string[]> = {
+    date:      ['datum', 'date'],
+    time:      ['zeit', 'start', 'uhrzeit'],
+    endTime:   ['ende', 'endzeit', 'end'],
+    room:      ['saal', 'room', 'zimmer'],
+    dept:      ['abteilung', 'fachgebiet', 'dept'],
+    procedure: ['eingriff', 'operation', 'procedure', 'op'],
+};
+
 export const DEFAULT_APP_CONFIG: AppConfig = {
     shifts: DEFAULT_SHIFT_CONFIG,
     rotation: {
@@ -135,9 +179,12 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
         totalOvertimeMax: 20,          // ±20 h running balance
     },
     exclusionKeywords: ['admin', 'sekretariat', 'hilfskraft'],
+    departments: DEFAULT_DEPARTMENTS,
+    weights: DEFAULT_WEIGHTS,
+    constraints: {},
+    logic: DEFAULT_LOGIC_CONFIG as any,
+    procedureRules: [],
+    timeline: DEFAULT_TIMELINE as any,
+    csvMapping: DEFAULT_CSV_MAPPING as any,
 };
 
-/** @deprecated Legacy department list — kept for old settings components */
-export const DEFAULT_DEPARTMENTS: string[] = [
-    'Anästhesie', 'OP-Saal', 'AWR', 'HKL', 'Endoskopie',
-];
